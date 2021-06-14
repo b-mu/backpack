@@ -29,7 +29,10 @@ class FisherBlockEffLayerNorm(FisherBlockEffBase):
 
     	x_hat = (I - mean) / (var + module.eps).sqrt()
 
-    	J = g_out_sc * x_hat
+    	if len(I.shape) == 2:
+	    	J = g_out_sc * x_hat
+    	else:
+    		J = torch.einsum('ncf,ncf->nf', g_out_sc, x_hat)
     	J = J.reshape(J.shape[0], -1)
     	JJT = torch.matmul(J, J.t())
 
