@@ -3,7 +3,8 @@ from torch.nn import (
     Conv2d,
     Linear,
     BatchNorm1d,
-    BatchNorm2d
+    BatchNorm2d,
+    LayerNorm
 )
 
 from backpack.extensions.backprop_extension import BackpropExtension
@@ -13,7 +14,8 @@ from . import (
     conv2d,
     linear,
     batchnorm1d,
-    batchnorm2d
+    batchnorm2d,
+    layernorm
 )
 
 
@@ -36,5 +38,6 @@ class FisherBlockEff(BackpropExtension):
                 Conv2d: conv2d.FisherBlockEffConv2d(self.damping, self.low_rank, self.gamma, self.memory_efficient, self.super_opt),
                 BatchNorm1d: batchnorm1d.FisherBlockEffBatchNorm1d(self.damping),
                 BatchNorm2d: batchnorm2d.FisherBlockEffBatchNorm2d(self.damping),
+                LayerNorm: layernorm.FisherBlockEffLayerNorm(self.damping)
             },
         )
