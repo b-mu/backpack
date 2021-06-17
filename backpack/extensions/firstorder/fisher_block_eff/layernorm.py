@@ -24,6 +24,7 @@ class FisherBlockEffLayerNorm(FisherBlockEffBase):
 
     grad = module.weight.grad.reshape(-1)
 
+    # compute mean, var over [c, h, w]
     if len(I.shape) == 2:
       mean = I.mean(dim=-1).unsqueeze(-1)
       var = I.var(dim=-1, unbiased=False).unsqueeze(-1)
@@ -31,9 +32,18 @@ class FisherBlockEffLayerNorm(FisherBlockEffBase):
       mean = I.mean((-2, -1), keepdims=True)
       var = I.var((-2, -1), unbiased=False, keepdims=True)
 
+    # compute mean, var over [h, w]
+    # mean = I.mean(dim=-1).unsqueeze(-1)
+    # var = I.var(dim=-1, unbiased=False).unsqueeze(-1)
+
     x_hat = (I - mean) / (var + module.eps).sqrt()
 
     J = g_out_sc * x_hat
+
+    # if len(I.shape) == 2:
+    #   J = g_out_sc * x_hat
+    # else:
+    #   J = torch.einsum('ncf,ncf->nf', g_out_sc, x_hat)
 
     J = J.reshape(J.shape[0], -1)
     JJT = torch.matmul(J, J.t())
@@ -71,6 +81,12 @@ class FisherBlockEffLayerNorm(FisherBlockEffBase):
     grad = module.bias.grad.reshape(-1)
 
     J = g_out_sc
+
+    # if len(I.shape) == 2:
+    #   J = g_out_sc
+    # else:
+    #   J = torch.einsum('ncf->nf', g_out_sc)
+
     J = J.reshape(J.shape[0], -1)
     JJT = torch.matmul(J, J.t())
 
