@@ -4,8 +4,9 @@ from backpack.core.derivatives.basederivatives import BaseParameterDerivatives
 from backpack.extensions.firstorder.fisher_block_eff.fisher_block_eff_base import FisherBlockEffBase
 
 class FisherBlockEffLayerNorm(FisherBlockEffBase):
-  def __init__(self, damping=1.0):
+  def __init__(self, damping=1.0, save_kernel='false'):
     self.damping = damping
+    self.save_kernel = save_kernel
     super().__init__(derivatives=BaseParameterDerivatives(), params=["bias", "weight"])
 
   def weight(self, ext, module, g_inp, g_out, backproped):
@@ -62,6 +63,8 @@ class FisherBlockEffLayerNorm(FisherBlockEffBase):
     module.I = I
     module.G = G
     module.NGD_inv = NGD_inv
+    if self.save_kernel == 'true':
+        module.NGD_kernel = NGD_kernel
 
     return update
 
@@ -103,5 +106,7 @@ class FisherBlockEffLayerNorm(FisherBlockEffBase):
 
     module.NGD_inv = NGD_inv
     module.G = G
+    if self.save_kernel == 'true':
+        module.NGD_kernel = NGD_kernel
 
     return update
