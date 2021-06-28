@@ -8,7 +8,7 @@ from backpack.utils.conv import unfold_func
 from torch.cuda import empty_cache
 from torch.linalg import inv, svd
 
-
+import torch
 # import numpy as np
 # import seaborn as sns
 # import matplotlib.pylab as plt
@@ -114,8 +114,8 @@ class FisherBlockEffConv2d(FisherBlockEffBase):
 
     
     def bias(self, ext, module, g_inp, g_out, bpQuantities):
-        
-        return module.bias.grad
+        update = torch.empty_like(module.bias.grad).copy_(module.bias.grad)
+        return update
         
 
 
