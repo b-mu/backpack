@@ -83,7 +83,7 @@ def hook_store_io(module, input, output):
         input: List of input tensors
         output: output tensor
     """
-    if module.training and (isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear)):
+    if module.training and (isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear) or isinstance(module, nn.CrossEntropyLoss)):
         for i in range(len(input)):
             setattr(module, "input{}".format(i), input[i])
         module.output = output
@@ -134,7 +134,7 @@ def hook_run_extensions(module, g_inp, g_out):
     for backpack_extension in CTX.get_active_exts():
         if CTX.get_debug():
             print("[DEBUG] Running extension", backpack_extension, "on", module)
-        if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
+        if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear) or isinstance(module, nn.CrossEntropyLoss):
             backpack_extension.apply(module, g_inp, g_out)
 
     if not (
