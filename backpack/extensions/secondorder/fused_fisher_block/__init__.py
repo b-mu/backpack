@@ -11,8 +11,7 @@ from . import (
 )
 
 class FusedFisherBlock(BackpropExtension):
-    def __init__(self, loss_sample, damping=1.0):
-        self.loss_sample = loss_sample
+    def __init__(self, damping=1.0):
         self.damping = damping
         super().__init__(
             savefield="fused_fisher_block",
