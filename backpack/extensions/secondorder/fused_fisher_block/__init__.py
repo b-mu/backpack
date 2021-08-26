@@ -1,13 +1,17 @@
 from torch.nn import (
     CrossEntropyLoss,
-    Linear
+    Linear,
+    ReLU,
+    Flatten
 )
 
 from backpack.extensions.backprop_extension import BackpropExtension
 
 from . import (
     linear,
-    losses
+    losses,
+    activations,
+    flatten
 )
 
 class FusedFisherBlock(BackpropExtension):
@@ -18,6 +22,8 @@ class FusedFisherBlock(BackpropExtension):
             fail_mode="WARNING",
             module_exts={
                 CrossEntropyLoss: losses.FusedFisherBlockCrossEntropyLoss(),
-                Linear: linear.FusedFisherBlockLinear(self.damping)
+                Linear: linear.FusedFisherBlockLinear(self.damping),
+                ReLU: activations.FusedFisherBlockReLU(),
+                Flatten: flatten.FusedFisherBlockFlatten()
             },
         )
