@@ -70,7 +70,7 @@ class FusedFisherBlockLinear(FusedFisherBlockBaseModule):
         # ngd update = J^T @ inv(JJ^T + damping * I) @ Jg
         Jg = einsum("mp,p->m", (J, g))
         JJT = einsum("mp,lp->ml", J, J)
-        JJT_inv = inv(JTJ + self.damping * eye(m).to(g.device))
+        JJT_inv = inv(JJT + self.damping * eye(m).to(g.device))
         v = matmul(JJT_inv, Jg.unsqueeze(1)).squeeze()
         gv = einsum("m,mp->p", (v, J))
 
