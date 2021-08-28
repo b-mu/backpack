@@ -15,24 +15,27 @@ class FusedFisherBlockLinear(FusedFisherBlockBaseModule):
         y = wx + b
         g_inp: tuple of [dl/db (avg) = sum of dl/dy over batch dim, dl/dx, dl/dw]
         g_out: tuple of [dl/dy (individual, divided by batch size m)]
-        backproped:
-            * symmetric factorization of the hessian w.r.t. output, i.e. S in H = SS^T (scaled by 1/sqrt(m))
-            * S^{(i-1)} = J^TS^{(i)}
-            * jacobian of loss w.r.t. weight params = transposed jacobian of output w.r.t. weight params @ S
+        backproped B:
+            * [c(number of classes), m(batch size), o(number of outputs)]
+            * batched symmetric factorization of G(y) = J^T H J (scaled by 1/sqrt(m), where
+                * J is the Jacobian of network outputs w.r.t. y
+                * H is the Hessian of loss w.r.t network outputs
+                * so initially the symmetric factorization of Hessian of loss w.r.t. network outputs, i.e. S in H = SS^T
+                * backpropagation to the previous layer by left multiplying the Jacobian of y w.r.t. x
+            * batched symmetric factorization of GGN/FIM G(w) = transposed Jacobian of output y w.r.t. weight params w @ B
         fuse by manully backproping quantities in the extra b/w pass
         """
-        # derivative of loss w.r.t. weight parameters = transposed derivatie of loss w.r.t. layer output @ I
         m = g_out[0].shape[0]
 
         I = module.input0
-        G = backproped.squeeze() # scaled by 1/sqrt(m)
+        G = backproped.squeeze() # mc_samples = 1, scaled by 1/sqrt(m)
         g = g_inp[2] # g = dw = einsum("mo,mi->io", (g_out[0], I))
 
         # compute the covariance factors II and GG
         II =  einsum("mi,li->ml", (I, I))
         GG =  einsum("mo,lo->ml", (G, G))
 
-        # ngd update = J^T @ inv(JJ^T + damping * I) @ Jg
+        # ngd update + SMW formula = J^T @ inv(JJ^T + damping * I) @ Jg
         Jg = einsum("mi,io->mo", (I, g))
         Jg = einsum("mo,mo->m", (Jg, G))
         JJT = II * GG
@@ -55,19 +58,22 @@ class FusedFisherBlockLinear(FusedFisherBlockBaseModule):
         y = wx + b
         g_inp: tuple of [dl/db (avg) = sum of dl/dy over batch dim, dl/dx, dl/dw]
         g_out: tuple of [dl/dy (individual, divided by batch size m)]
-        backproped:
-            * symmetric factorization of the hessian w.r.t. output, i.e. S in H = SS^T (scaled by 1/sqrt(m))
-            * S^{(i-1)} = J^TS^{(i)}
-            * jacobian of loss w.r.t. bias params = transposed jacobian of output w.r.t. bias params @ S = S
+        backproped B:
+            * [c(number of classes), m(batch size), o(number of outputs)]
+            * batched symmetric factorization of G(y) = J^T H J (scaled by 1/sqrt(m), where
+                * J is the Jacobian of network outputs w.r.t. y
+                * H is the Hessian of loss w.r.t network outputs
+                * so initially the symmetric factorization of Hessian of loss w.r.t. network outputs, i.e. S in H = SS^T
+                * backpropagation to the previous layer by left multiplying the Jacobian of y w.r.t. x
+            * batched symmetric factorization of GGN/FIM G(b) = transposed Jacobian of output y w.r.t. bias params b @ B = B
         fuse by manully backproping quantities in the extra b/w pass
         """
-        # derivative of loss w.r.t. bias parameters = derivatie of loss w.r.t. layer output, i.e. J = G
         g = g_inp[0]
         m = g_out[0].shape[0]
 
-        J = backproped.squeeze()
+        J = backproped.squeeze() # mc_samples = 1
 
-        # ngd update = J^T @ inv(JJ^T + damping * I) @ Jg
+        # ngd update + SMW formula = J^T @ inv(JJ^T + damping * I) @ Jg
         Jg = einsum("mp,p->m", (J, g))
         JJT = einsum("mp,lp->ml", J, J)
         JJT_inv = inv(JJT + self.damping * eye(m).to(g.device))
