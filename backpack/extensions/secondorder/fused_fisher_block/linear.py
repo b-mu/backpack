@@ -25,26 +25,32 @@ class FusedFisherBlockLinear(FusedFisherBlockBaseModule):
             * batched symmetric factorization of GGN/FIM G(w) = transposed Jacobian of output y w.r.t. weight params w @ B
         fuse by manully backproping quantities in the extra b/w pass
         """
-        c, m, o = backproped.size()
         I = module.input0
-        # G = backproped.squeeze() # mc_samples = 1, scaled by 1/sqrt(m)
-        G = backproped # [c, m, o]
+
+        # --- I: mc_samples = 1 ---
+        # G = backproped.squeeze() # scaled by 1/sqrt(m)
+
+        # --- II: exact hessian of loss w.r.t. network outputs ---
+        H_inv, G, (m, c) = backproped
+
         g = g_inp[2] # g = dw = einsum("mo,mi->io", (g_out[0], I))
+        o = G.size(0)
+        G = G.reshape(c, m, o)
 
         # compute the covariance factors II and GG
         II = einsum("mi,li->ml", (I, I)) # [m, m], memory efficient
         GG = einsum("cmo,vlo->cmvl", (G, G)) # [mc, mc]
 
-        # ngd update + SMW formula = J^T @ inv(JJ^T + damping * I) @ Jg
+        # GGN/FIM precondition + SMW formula = 1/λ [I - 1/m J'(λH^{−1} + 1/m JJ')^{-1}J]g
         Jg = einsum("mi,io->mo", (I, g))
         Jg = einsum("mo,cmo->cm", (Jg, G))
         Jg = Jg.reshape(-1)
-        JJT = einsum("mo,cmvo->cmvo", (II, GG)).reshape(c * m, c * m)
-        JJT_inv = inv(JJT + self.damping * eye(c * m).to(g.device))
+        JJT = einsum("mo,cmvo->cmvo", (II, GG)).reshape(c * m, c * m) / m
+        JJT_inv = inv(JJT + self.damping * H_inv)
         v = matmul(JJT_inv, Jg.unsqueeze(1)).squeeze()
         gv = einsum("q,qo->qo", (v, G.reshape(c * m, o)))
         gv = gv.reshape(c, m, o)
-        gv = einsum("cmo,mi->oi", (gv, I))
+        gv = einsum("cmo,mi->oi", (gv, I)) / m
 
         update = (g.t() - gv) / self.damping
 
@@ -71,17 +77,20 @@ class FusedFisherBlockLinear(FusedFisherBlockBaseModule):
         fuse by manully backproping quantities in the extra b/w pass
         """
         g = g_inp[0]
-        c, m, p = backproped.size()
-        # J = backproped.squeeze() # mc_samples = 1
-        J = backproped.reshape(-1, p) # [cm, p]
 
-        # ngd update + SMW formula = J^T @ inv(JJ^T + damping * I) @ Jg
-        Jg = einsum("qp,p->q", (J, g))
+        # --- I: mc_samples = 1 ---
+        # J = backproped.squeeze()
 
-        JJT = einsum("qp,rp->qr", J, J) # [cm, cm]
-        JJT_inv = inv(JJT + self.damping * eye(m * c).to(g.device))
+        # --- II: exact hessian of loss w.r.t. network outputs ---
+        H_inv, J, (m, c) = backproped
+
+        # GGN/FIM precondition + SMW formula = 1/λ [I - 1/m J'(λH^{−1} + 1/m JJ')^{-1}J]g
+        Jg = einsum("pq,p->q", (J, g)) # q = cm
+
+        JJT = einsum("pq,pr->qr", J, J) / m # [cm, cm]
+        JJT_inv = inv(JJT + self.damping * H_inv)
         v = matmul(JJT_inv, Jg.unsqueeze(1)).squeeze()
-        gv = einsum("q,qp->p", (v, J))
+        gv = einsum("q,pq->p", (v, J)) / m
 
         update = (g - gv) / self.damping
 
