@@ -23,6 +23,7 @@ from .trial import TRIAL
 from .diag_hessian import DiagHessian
 from .hbp import HBP, KFAC, KFLR, KFRA
 from .mngd import MNGD
+from .fused_fisher_block import FusedFisherBlock
 
 __all__ = [
     "MNGD",
@@ -35,4 +36,5 @@ __all__ = [
     "KFLR",
     "KFRA",
     "HBP",
+    "FusedFisherBlock"
 ]

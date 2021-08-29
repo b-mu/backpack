@@ -15,6 +15,7 @@ from .secondorder import (
     DiagGGNMC,
     DiagHessian,
     MNGD,
+    FusedFisherBlock
 )
 
 __all__ = [
@@ -38,4 +39,5 @@ __all__ = [
     "DiagGGNMC",
     "DiagGGN",
     "DiagHessian",
+    "FusedFisherBlock"
 ]
