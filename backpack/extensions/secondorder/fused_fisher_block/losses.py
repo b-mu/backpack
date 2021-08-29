@@ -17,7 +17,7 @@ class FusedFisherBlockLoss(FusedFisherBlockBaseModule):
         H = einsum('omc,olv->cmvl', (sqrt_H, sqrt_H)).reshape(c * m, c * m)
         H_inv = inv(H)
 
-        return (H_inv, eye(c, c * m).to(H_inv.device), (m, c))
+        return (H_inv, eye(c, c * m).to(H_inv.device).reshape(c, m, c), (m, c))
 
     def make_loss_hessian_func(self, ext):
         # TODO(bmu): try both exact and MC sampling

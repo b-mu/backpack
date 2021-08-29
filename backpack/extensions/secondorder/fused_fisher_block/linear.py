@@ -32,10 +32,9 @@ class FusedFisherBlockLinear(FusedFisherBlockBaseModule):
 
         # --- II: exact hessian of loss w.r.t. network outputs ---
         H_inv, G, (m, c) = backproped
+        c, m, o = G.size()
 
         g = g_inp[2] # g = dw = einsum("mo,mi->io", (g_out[0], I))
-        o = G.size(0)
-        G = G.reshape(c, m, o)
 
         # compute the covariance factors II and GG
         II = einsum("mi,li->ml", (I, I)) # [m, m], memory efficient
@@ -83,6 +82,7 @@ class FusedFisherBlockLinear(FusedFisherBlockBaseModule):
 
         # --- II: exact hessian of loss w.r.t. network outputs ---
         H_inv, J, (m, c) = backproped
+        J = J.reshape(-1, c * m)
 
         # GGN/FIM precondition + SMW formula = 1/λ [I - 1/m J'(λH^{−1} + 1/m JJ')^{-1}J]g
         Jg = einsum("pq,p->q", (J, g)) # q = cm
