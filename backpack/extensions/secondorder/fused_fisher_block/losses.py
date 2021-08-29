@@ -15,7 +15,7 @@ class FusedFisherBlockLoss(FusedFisherBlockBaseModule):
     def make_loss_hessian_func(self, ext):
         # TODO(bmu): try both exact and MC sampling
         # set mc_samples = 1 for backprop efficiency
-        return self.derivatives.sqrt_hessian_sampled
+        return self.derivatives.sqrt_hessian
 
 
 class FusedFisherBlockCrossEntropyLoss(FusedFisherBlockLoss):
