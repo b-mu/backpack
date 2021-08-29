@@ -25,24 +25,26 @@ class FusedFisherBlockLinear(FusedFisherBlockBaseModule):
             * batched symmetric factorization of GGN/FIM G(w) = transposed Jacobian of output y w.r.t. weight params w @ B
         fuse by manully backproping quantities in the extra b/w pass
         """
-        m = g_out[0].shape[0]
-
+        c, m, o = backproped.size()
         I = module.input0
-        G = backproped.squeeze() # mc_samples = 1, scaled by 1/sqrt(m)
+        # G = backproped.squeeze() # mc_samples = 1, scaled by 1/sqrt(m)
+        G = backproped # [c, m, o]
         g = g_inp[2] # g = dw = einsum("mo,mi->io", (g_out[0], I))
 
         # compute the covariance factors II and GG
-        II =  einsum("mi,li->ml", (I, I))
-        GG =  einsum("mo,lo->ml", (G, G))
+        II = einsum("mi,li->ml", (I, I)) # [m, m], memory efficient
+        GG = einsum("cmo,vlo->cmvl", (G, G)) # [mc, mc]
 
         # ngd update + SMW formula = J^T @ inv(JJ^T + damping * I) @ Jg
         Jg = einsum("mi,io->mo", (I, g))
-        Jg = einsum("mo,mo->m", (Jg, G))
-        JJT = II * GG
-        JJT_inv = inv(JJT + self.damping * eye(m).to(g.device))
+        Jg = einsum("mo,cmo->cm", (Jg, G))
+        Jg = Jg.reshape(-1)
+        JJT = einsum("mo,cmvo->cmvo", (II, GG)).reshape(c * m, c * m)
+        JJT_inv = inv(JJT + self.damping * eye(c * m).to(g.device))
         v = matmul(JJT_inv, Jg.unsqueeze(1)).squeeze()
-        gv = einsum("m,mo->mo", (v, G))
-        gv = einsum("mo,mi->oi", (gv, I))
+        gv = einsum("q,qo->qo", (v, G.reshape(c * m, o)))
+        gv = gv.reshape(c, m, o)
+        gv = einsum("cmo,mi->oi", (gv, I))
 
         update = (g.t() - gv) / self.damping
 
@@ -69,16 +71,17 @@ class FusedFisherBlockLinear(FusedFisherBlockBaseModule):
         fuse by manully backproping quantities in the extra b/w pass
         """
         g = g_inp[0]
-        m = g_out[0].shape[0]
-
-        J = backproped.squeeze() # mc_samples = 1
+        c, m, p = backproped.size()
+        # J = backproped.squeeze() # mc_samples = 1
+        J = backproped.reshape(-1, p) # [cm, p]
 
         # ngd update + SMW formula = J^T @ inv(JJ^T + damping * I) @ Jg
-        Jg = einsum("mp,p->m", (J, g))
-        JJT = einsum("mp,lp->ml", J, J)
-        JJT_inv = inv(JJT + self.damping * eye(m).to(g.device))
+        Jg = einsum("qp,p->q", (J, g))
+
+        JJT = einsum("qp,rp->qr", J, J) # [cm, cm]
+        JJT_inv = inv(JJT + self.damping * eye(m * c).to(g.device))
         v = matmul(JJT_inv, Jg.unsqueeze(1)).squeeze()
-        gv = einsum("m,mp->p", (v, J))
+        gv = einsum("q,qp->p", (v, J))
 
         update = (g - gv) / self.damping
 
