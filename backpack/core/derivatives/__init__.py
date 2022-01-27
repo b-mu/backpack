@@ -10,6 +10,7 @@ from torch.nn import (
     ConvTranspose3d,
     CrossEntropyLoss,
     Dropout,
+    LayerNorm,
     LeakyReLU,
     Linear,
     LogSigmoid,
@@ -23,6 +24,7 @@ from torch.nn import (
     BatchNorm2d
 )
 
+from .basederivatives import BaseParameterDerivatives
 from .avgpool2d import AvgPool2DDerivatives
 from .conv1d import Conv1DDerivatives
 from .conv_transpose1d import ConvTranspose1DDerivatives
@@ -47,6 +49,7 @@ from .batchnorm1d import BatchNorm1dDerivatives
 from .batchnorm2d import BatchNorm2dDerivatives
 
 derivatives_for = {
+    LayerNorm: BaseParameterDerivatives,
     Linear: LinearDerivatives,
     Conv1d: Conv1DDerivatives,
     Conv2d: Conv2DDerivatives,

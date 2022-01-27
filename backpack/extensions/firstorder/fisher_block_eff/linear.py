@@ -6,9 +6,10 @@ from backpack.extensions.firstorder.fisher_block_eff.fisher_block_eff_base impor
 
 
 class FisherBlockEffLinear(FisherBlockEffBase):
-    def __init__(self, damping=1.0, alpha=0.95):
+    def __init__(self, damping=1.0, alpha=0.95, save_kernel='false'):
         self.damping = damping
         self.alpha = alpha
+        self.save_kernel = save_kernel
         super().__init__(derivatives=LinearDerivatives(), params=["bias", "weight"])
 
     def weight(self, ext, module, g_inp, g_out, backproped):
@@ -42,6 +43,8 @@ class FisherBlockEffLinear(FisherBlockEffBase):
         module.I = I
         module.G = G
         module.NGD_inv = NGD_inv
+        if self.save_kernel == 'true':
+            module.NGD_kernel = NGD_kernel
         return  update
         
 
@@ -67,6 +70,9 @@ class FisherBlockEffLinear(FisherBlockEffBase):
 
         update = (grad - gv)/self.damping
         # update = grad
+
+        if self.save_kernel == 'true':
+            module.NGD_kernel = NGD_kernel
 
         return update
         
